@@ -13,8 +13,11 @@ logger = get_logger(__name__)
 
 class ResourceService:
 
-    # Supported file extensions
+    # Supported file extensions (will be indexed/vectorized)
     SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.txt', '.md'}
+
+    # Image extensions (stored but not indexed)
+    IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.tif'}
 
 
     @staticmethod
@@ -276,8 +279,9 @@ class ResourceService:
             
             
         file_extension = os.path.splitext(file.filename)[1].lower()
-        if file_extension not in ResourceService.SUPPORTED_EXTENSIONS:
-            supported = ', '.join(ResourceService.SUPPORTED_EXTENSIONS)
+        all_accepted = ResourceService.SUPPORTED_EXTENSIONS | ResourceService.IMAGE_EXTENSIONS
+        if file_extension not in all_accepted:
+            supported = ', '.join(sorted(all_accepted))
             return {
                 'filename': file.filename,
                 'error': f"Unsupported file type: {file_extension}. Supported: {supported}"
@@ -326,14 +330,21 @@ class ResourceService:
 
     @staticmethod
     def _index_resources(resources: List[Resource]):
+        indexable = [
+            r for r in resources
+            if os.path.splitext(r.uri)[1].lower() not in ResourceService.IMAGE_EXTENSIONS
+        ]
+        skipped = len(resources) - len(indexable)
+        if skipped:
+            logger.info(f"Skipping indexing for {skipped} image file(s)")
         indexed_count = 0
-        for resource in resources:
+        for resource in indexable:
             try:
                 SiloService.index_resource(resource)
                 indexed_count += 1
             except Exception as e:
                 logger.error(f"Failed to index resource {resource.resource_id}: {str(e)}")
-        logger.info(f"Successfully indexed {indexed_count}/{len(resources)} resources")
+        logger.info(f"Successfully indexed {indexed_count}/{len(indexable)} resources")
 
     @staticmethod
     def _cleanup_files(resources: List[Resource], repository_path: str):

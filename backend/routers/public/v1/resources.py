@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from fastapi.responses import FileResponse
 from typing import List, Optional, Annotated
+import mimetypes
 from sqlalchemy.orm import Session
 
 from services.resource_service import ResourceService
@@ -178,3 +179,47 @@ async def download_resource(
             detail="Failed to download resource",
         )
 
+
+@resources_router.get(
+    "/{repo_id}/{resource_id}/view",
+    summary="View resource inline",
+    tags=["Resources"],
+)
+async def view_resource(
+    app_id: int,
+    repo_id: int,
+    resource_id: int,
+    api_key: Annotated[str, Depends(get_api_key_auth)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Serve a resource file inline (e.g. to display an image in the browser or pass its URL to a model)."""
+    validate_api_key_for_app(app_id, api_key, db)
+    validate_repository_ownership(db, repo_id, app_id)
+    validate_resource_ownership(db, resource_id, repo_id)
+
+    try:
+        user_context = create_api_key_user_context(app_id, api_key)
+        file_path, filename = ResourceService.download_resource_from_repository(
+            app_id=app_id,
+            repository_id=repo_id,
+            resource_id=resource_id,
+            user_id=user_context["user_id"],
+            db=db,
+        )
+        media_type, _ = mimetypes.guess_type(filename)
+        if not media_type:
+            media_type = "application/octet-stream"
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type=media_type,
+            content_disposition_type="inline",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error viewing resource: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to serve resource",
+        )

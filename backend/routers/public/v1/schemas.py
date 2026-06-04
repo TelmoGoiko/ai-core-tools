@@ -206,10 +206,13 @@ class RepositorySchema(BaseModel):
 class CreateRepositoryRequestSchema(BaseModel):
     """Create repository request"""
     name: str
+    embedding_service_id: Optional[int] = None
+    vector_db_type: Optional[str] = None
 
 class UpdateRepositoryRequestSchema(BaseModel):
     """Update repository request"""
-    name: Optional[str] = None
+    name: str
+    embedding_service_id: Optional[int] = None
 
 class RepositoryResponseSchema(BaseModel):
     """Single repository response"""
