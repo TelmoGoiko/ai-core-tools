@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional, Annotated
-from datetime import datetime
 
 from .schemas import (
     RepositoriesResponseSchema,
@@ -25,10 +24,10 @@ from .auth import (
     validate_media_ownership,
 )
 
-from models.repository import Repository
 from services.repository_service import RepositoryService
 from services.silo_service import SiloService
 from services.media_service import MediaService
+from schemas.repository_schemas import CreateRepositorySchema, UpdateRepositorySchema
 from db.database import get_db
 
 from utils.logger import get_logger
@@ -108,14 +107,12 @@ async def create_repo(
     validate_api_key_for_app(app_id, api_key, db)
 
     try:
-        repo = Repository(
+        repo_data = CreateRepositorySchema(
             name=request.name,
-            app_id=app_id,
-            type="default",
-            status="active",
-            create_date=datetime.now(),
+            embedding_service_id=request.embedding_service_id,
+            vector_db_type=request.vector_db_type,
         )
-        created = RepositoryService.create_repository(repo, db=db)
+        created = RepositoryService.create_repository_router(app_id, repo_data, db)
         logger.info(f"Repository created via public API: {created.repository_id}")
         return RepositoryResponseSchema(
             repository=RepositorySchema.model_validate(created)
@@ -145,14 +142,14 @@ async def update_repo(
 ):
     """Update an existing repository."""
     validate_api_key_for_app(app_id, api_key, db)
-    repo = validate_repository_ownership(db, repo_id, app_id)
+    validate_repository_ownership(db, repo_id, app_id)
 
     try:
-        updates = request.model_dump(exclude_unset=True)
-        for field, value in updates.items():
-            setattr(repo, field, value)
-
-        updated = RepositoryService.update_repository(repo, db=db)
+        repo_data = UpdateRepositorySchema(
+            name=request.name,
+            embedding_service_id=request.embedding_service_id,
+        )
+        updated = RepositoryService.update_repository_router(app_id, repo_id, repo_data, db)
         logger.info(f"Repository updated via public API: {repo_id}")
         return RepositoryResponseSchema(
             repository=RepositorySchema.model_validate(updated)

@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from models.agent import Agent, AgentMCP, AgentTool, AgentSkill
+from models.conversation import Conversation
 from models.ocr_agent import OCRAgent
 from models.ai_service import AIService
 from models.silo import Silo
@@ -109,6 +110,8 @@ class AgentRepository:
         db.query(AgentTool).filter(AgentTool.agent_id == agent_id).delete(synchronize_session=False)
         # Remove all references to this agent as a tool (tool_id side).
         AgentRepository.remove_tool_references(db, agent_id)
+        # Delete all conversations for this agent (FK has no CASCADE).
+        db.query(Conversation).filter(Conversation.agent_id == agent_id).delete(synchronize_session=False)
         db.delete(agent)
         db.commit()
         return True
