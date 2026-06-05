@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Instalar dependencias de compilación
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get -o APT::Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && apt-get -o APT::Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends \
     build-essential \
     gcc \
     libmariadb-dev \
@@ -50,7 +50,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /aict_backend
 
 # Instalar dependencias de runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get -o APT::Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && apt-get -o APT::Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends \
     curl \
     libmariadb3 \
     libpq5 \
